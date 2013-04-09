@@ -1,0 +1,181 @@
+#!/bin/bash
+
+. /etc/birsh/settings
+
+birsh_add_bridge() {
+   brctl addbr $BRIDGE
+   ip link set dev $BRIDGE up
+   ip addr add $GATEWAY/24 dev $BRIDGE
+   iptables -t nat -A POSTROUTING -s $NETWORK/24 ! -d $NETWORK/24 -j MASQUERADE
+   echo 1 > /proc/sys/net/ipv4/conf/$BRIDGE/proxy_arp
+   echo 1 > /proc/sys/net/ipv4/conf/$BRIDGE/proxy_arp_pvlan
+
+   if [[ ! -z "$BRIDGEUP" ]]; then
+      eval "$BRIDGEUP"
+   fi
+}
+
+birsh_add_netdevice() {
+   local start=0
+   while :
+   do
+      ip link show vnet$start >/dev/null 2>&1
+      if [ $? -eq 1 ]; then
+         DEV=vnet$start
+         break
+      fi
+      start=$[ $start + 1 ]
+   done
+
+   ip tuntap add dev $DEV mode tap
+   brctl addif $BRIDGE $DEV
+   ip link set dev $DEV up
+}
+
+mount_image() {
+   local image=$IMAGESFOLDER/$1.qcow2
+   local name=$1
+   local current=0
+
+   if [ ! -f $image ]; then
+      echo "$image does not exist or is not a file"
+      exit 12
+   fi
+
+   while :
+   do
+      if [ -f $MOUNTFOLDER/.nbd${current} ]; then
+         current=$[ $current + 1 ]
+      else
+         break;
+      fi
+   done
+
+   local device=/dev/nbd${current}
+   local part=/dev/mapper/nbd${current}p1
+   folder=$MOUNTFOLDER/${name}
+
+   qemu-nbd -c $device $image
+   kpartx -a $device
+
+   mkdir -p $folder
+   mount $part $folder
+
+   touch $MOUNTFOLDER/.nbd${current}
+}
+
+umount_image() {
+   local image=$1
+   local folder=$MOUNTFOLDER/$image
+
+   if [ ! -d $folder ]; then
+      echo "$folder is not a directory"
+      exit 13
+   fi
+
+   local device=$(ps x | grep $image | grep nbd | awk -F' ' '{print $7}')
+   local devicen=${device##*/}
+
+   umount $folder
+
+   kpartx -d $device
+   qemu-nbd -d $device
+
+   rm $MOUNTFOLDER/.$devicen
+   rmdir $folder
+}
+
+birsh_boot_vm() {
+   # We change the physical address of the network device to prevent
+   # duplicate packets
+   local origmacaddr=$(ip link show $DEV | grep link | awk -F' ' '{print $2}')
+   local macaddr=$(echo -n $origmacaddr | sed -r "s/^([@-9a-f]{2}\:){3}/52:54:00:/; s/[0-9a-f]{2}$/$(echo -n $origmacaddr | md5sum | cut -c1-2)/;")
+
+   local serial=${TMPFOLDER}/$2.serial
+   local monitor=${TMPFOLDER}/$2.monitor
+
+   mkdir -p $TMPFOLDER
+
+   qemu-kvm -enable-kvm -cpu qemu64 -m $1 -nodefconfig -nodefaults -drive file=${IMAGESFOLDER}/$2.qcow2,if=none,id=drive-virtio-disk0,format=qcow2,cache=none,index=1 -device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x4,drive=drive-virtio-disk0,id=virtio-disk0 -netdev tap,id=hostnet0,ifname=$DEV,script=no,downscript=no -device virtio-net-pci,netdev=hostnet0,id=net0,mac=$macaddr,bus=pci.0,addr=0x3 -monitor unix:$monitor,server,nowait -rtc base=utc -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x6 -device piix3-usb-uhci,id=usb,bus=pci.0,addr=0x1.0x2 -chardev pty,id=ttyS0 -device isa-serial,chardev=ttyS0,id=serial1 -device usb-tablet,id=input0 -k fr -vga cirrus -daemonize $3
+
+   # After the boot, we take the pts assigned to the serial port
+   local ttyS0=$(echo "info chardev" | socat $monitor - | grep ttyS0 | cut -d'=' -f2 | cut -d':' -f2 | tr -d '\r')
+   echo -n $ttyS0 > $serial
+   chmod go= $serial
+
+   # And we let the access to the monitor
+   socat $monitor -
+
+   # Cleanup
+   rm $monitor $serial
+   rmdir --ignore-fail-on-non-empty $TMPFOLDER
+}
+
+birsh_remove_netdevice() {
+   ip link set dev $DEV down
+   brctl delif $BRIDGE $DEV
+   ip tuntap del dev $DEV mode tap
+}
+
+case $1 in
+   "start")
+      shift
+      GRAPHIC="-nographic"
+      DEV=""
+      while [ ! -z $1 ]; do
+         case $1 in
+            "-m")
+               MEMORY=$2
+               shift
+               ;;
+            "-g")
+               GRAPHIC=""
+               shift
+               ;;
+            *)
+               NAME=$1
+               ;;
+         esac
+         shift
+      done
+
+      if [ -z $NAME ]; then
+         echo "Name is missing"
+         exit 1
+      fi
+
+      if [ -z $MEMORY ]; then
+         echo "Memory size must be set with -m"
+         exit 1
+      fi
+
+      ip link show dev $BRIDGE >/dev/null 2>&1 || birsh_add_bridge
+      birsh_add_netdevice
+      birsh_boot_vm $MEMORY $NAME $GRAPHIC
+      birsh_remove_netdevice
+      ;;
+   "serial")
+      if [ -f ${TMPFOLDER}/$2.serial ]; then
+         screen $(<${TMPFOLDER}/$2.serial) 115200
+      else
+         echo "Unknown virtual machine"
+         exit 1
+      fi
+      ;;
+   "nspawn")
+      folder=""
+      mount_image $2
+      systemd-nspawn -b -D $folder
+      umount_image $2
+      ;;
+   *)
+      echo "Unknown command"
+      echo "Available commandes are:"
+      echo -e "\tbirsh start: start a new virtual machine with QEMU-KVM"
+      echo -e "\tbirsh nspawn: start a new container with systemd-nspawn"
+      echo -e "\tbirsh serial: attach to the serial console of a virtual machine (if available)"
+      exit 1
+      ;;
+esac
+
+exit 0
