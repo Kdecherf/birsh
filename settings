@@ -1,0 +1,6 @@
+BRIDGE=vbridge
+NETWORK=192.168.69.0
+GATEWAY=192.168.69.1
+IMAGESFOLDER=/home/images
+MOUNTFOLDER=/mnt/birsh
+TMPFOLDER=/tmp/birsh
