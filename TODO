@@ -1,0 +1,3 @@
+- Add persistent settings file per VM
+- Add support of data disks
+- Add support of multiple network interfaces
