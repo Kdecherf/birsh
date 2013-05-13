@@ -86,3 +86,9 @@ Spawn a container for the disk exherbo:
 > birsh nspawn exherbo
 
 _Note: this command will mount the disk exherbo.qcow2 in `MOUNTFOLDER`/exherbo and boot it._
+
+
+License
+-------
+
+This tool is released under the [ISC license](http://www.isc.org/software/license "ISC license"). See the LICENSE file for more information.
