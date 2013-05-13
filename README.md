@@ -5,7 +5,9 @@ birsh
 
 I created this bash script to be able to quickly start virtual machines with **KVM** or **systemd-nspawn** (more or less container mode) on my laptop without playing with ton of XML files or an awful GUI tool.
 
-This tool lacks features at this time like graphical screen, removable media boot and the code is not necessarily beautiful but it works for me :) (and you can contribute)
+The second mode is useful if you want to boot only one virtual machine without network needs (here the network is shared with the host) like quick test of a patch, build or software. The first mode can be used as many times as you want.
+
+This tool lacks features at this time like graphical screen, removable media boot, disk management and the code is not necessarily beautiful but it works for me :) (and you can contribute)
 
 
 Installation
@@ -35,35 +37,52 @@ Requirements
 
 You must have these tools installed on your host: `brctl`, `ip`, `iptables`, `qemu-nbd`, `kpartx`, `socat`, `screen`, `systemd-nspawn` (optional).
 
-`screen` is used to give you an access to the serial console of a KVM virtual machine. `qemu-nbd` and `kpartx` are used for the `nspawn` mode (see below).
+`screen` is used to give you an access to the serial console of a KVM virtual machine. You should set `console=ttyS0` on the virtual machine's kernel boot argument to be able to use this feature.
+
+`qemu-nbd` and `kpartx` are used for the `nspawn` mode.
 
 
 Usage
 -----
 
-First of all, there are two modes on this tool: `start` which starts a virtual machine using KVM and `nspawn` which "boots" a virtual machine using `systemd-nspawn` (container).
+**birsh** _command_ [_options_]
 
-The second mode is useful if you want to boot only one virtual machine without network needs (here the network is shared with the host) like quick test of a patch, build or software. The first mode can be used for as many times as you want.
+### Commands
 
-At this time, this tool does not provide disk management so I let you manage your disks with `qemu-img` as you want. Just keep in mind that I only use qcow2 format in this tool.
+**birsh start** _name_ _-m size_  
+Start a new virtual machine using _qemu-kvm_. Return the QEMU monitor socket.
+
+* _name_ (mandatory): name of the disk to boot on
+* **-m** _size_ (mandatory): set _size_ MB of memory to the virtual machine
+
+
+**birsh nspawn** _name_
+Start a new container using _systemd-nspawn_. Return a chrooted shell.
+
+* _name_ (mandatory): name of the disk to boot on
+
+**birsh serial** _name_  
+Attach a screen to the serial console of a virtual machine (only for _qemu-kvm_)
+
+* _name_ (mandatory): name of the disk to attach console on
+
+
+Examples
+--------
 
 I consider you have some bootable disks in your `IMAGESFOLDER`, for example ubuntu.qcow2, exherbo.qcow2 and php.qcow2.
 
-To boot a KVM image: `birsh start name -m memorysize`
-> where *name* is the name of the disk without the extension (eg. ubuntu, exherbo and php)
-> and *memorysize* is the size of memory in MB
+Boot the php virtual machine using `qemu-kvm` with 512 MB of memory:
+> birsh start php -m 512
 
-In this case, the tool will give you a prompt to the QEMU monitor socket after the start. Typing `quit` in the monitor or powering off the virtual machine will release the socket and destroy the virtual machine.
-
-If you need to connect to the console (eg. the network or SSH don't work): `birsh serial name`
-> where *name* is the name of a started virtual machine
-
-**Note**: To be able to use this feature, you must set `console=ttyS0` on the virtual machines's kernel boot argument
+_Note: this command will output a prompt to the QEMU monitor socket. Typing `quit` in this monitor or powering off the virtual machine will release the socket and destroy the machine._
 
 
+Attach to the php serial console (after `birsh start php`):
+> birsh serial php
 
-To spawn a container with systemd: `birsh nspawn name`
-> where *name* is the name of the disk without the extension
 
-It will mount the disk in a folder (`MOUNTFOLDER`/name) and boot it. You only have one shell for this machine.
+Spawn a container for the disk exherbo:
+> birsh nspawn exherbo
 
+_Note: this command will mount the disk exherbo.qcow2 in `MOUNTFOLDER`/exherbo and boot it._

@@ -169,11 +169,12 @@ case $1 in
       umount_image $2
       ;;
    *)
-      echo "Unknown command"
+      echo "Invalid command"
+      echo
       echo "Available commandes are:"
-      echo -e "\tbirsh start: start a new virtual machine with QEMU-KVM"
-      echo -e "\tbirsh nspawn: start a new container with systemd-nspawn"
-      echo -e "\tbirsh serial: attach to the serial console of a virtual machine (if available)"
+      echo -e "\t\e[1;37mbirsh start\e[0m: start a new virtual machine with \e[4;37mqemu-kvm\e[0m"
+      echo -e "\t\e[1;37mbirsh nspawn\e[0m: start a new container with \e[4;37msystemd-nspawn\e[0m"
+      echo -e "\t\e[1;37mbirsh serial\e[0m: attach to the serial console of a virtual machine (if available)"
       exit 1
       ;;
 esac
