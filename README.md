@@ -66,6 +66,9 @@ Attach a screen to the serial console of a virtual machine (only for _qemu-kvm_)
 
 * _name_ (mandatory): name of the disk to attach console on
 
+**birsh list**
+List all available qcow2 disk files in `IMAGESFOLDER`. Files in subfolders are excluded.
+
 
 Examples
 --------
