@@ -45,7 +45,7 @@ You must have these tools installed on your host: `brctl`, `ip`, `iptables`, `qe
 Usage
 -----
 
-**birsh** _command_ [_options_]
+**birsh** _command_ _[options]_
 
 ### Commands
 
@@ -56,7 +56,7 @@ Start a new virtual machine using _qemu-kvm_. Return the QEMU monitor socket.
 * **-m** _size_ (mandatory): set _size_ MB of memory to the virtual machine
 
 
-**birsh nspawn** _name_
+**birsh nspawn** _name_  
 Start a new container using _systemd-nspawn_. Return a chrooted shell.
 
 * _name_ (mandatory): name of the disk to boot on
@@ -66,7 +66,7 @@ Attach a screen to the serial console of a virtual machine (only for _qemu-kvm_)
 
 * _name_ (mandatory): name of the disk to attach console on
 
-**birsh list**
+**birsh list**  
 List all available qcow2 disk files in `IMAGESFOLDER`. Files in subfolders are excluded.
 
 
