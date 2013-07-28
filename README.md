@@ -49,12 +49,13 @@ Usage
 
 ### Commands
 
-**birsh start** _name_ _-m size_ _[-g]_  
+**birsh start** _name_ _-m size_ _[-g]_ _[-s num]_  
 Start a new virtual machine using _qemu-kvm_. Return the QEMU monitor socket.
 
 * _name_ (mandatory): name of the disk to boot on
 * **-m** _size_ (mandatory): set _size_ MB of memory to the virtual machine
 * **-g**: enable graphical output
+* **-s** _num_: set _num_ CPUs to the virtual machine
 
 
 **birsh nspawn** _name_  

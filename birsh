@@ -106,7 +106,7 @@ birsh_boot_vm() {
       datai=$[$datai+1]
    done
 
-   qemu-kvm -enable-kvm -cpu qemu64 -m $1 -nodefconfig -nodefaults -drive file=${IMAGESFOLDER}/$2.qcow2,if=none,id=drive-virtio-disk0,format=qcow2,cache=none,index=1 -device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x4,drive=drive-virtio-disk0,id=virtio-disk0 -netdev tap,id=hostnet0,ifname=$DEV,script=no,downscript=no -device virtio-net-pci,netdev=hostnet0,id=net0,mac=$macaddr,bus=pci.0,addr=0x3 -monitor unix:$monitor,server,nowait -rtc base=utc -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x6 -device piix3-usb-uhci,id=usb,bus=pci.0,addr=0x1.0x2 -chardev pty,id=ttyS0 -device isa-serial,chardev=ttyS0,id=serial1 -device usb-tablet,id=input0 -k fr -vga cirrus $datastr -daemonize $3 || exit 1
+   qemu-kvm -enable-kvm -cpu qemu64 $(test ! -z $4 && echo "-smp $4") -m $1 -nodefconfig -nodefaults -drive file=${IMAGESFOLDER}/$2.qcow2,if=none,id=drive-virtio-disk0,format=qcow2,cache=none,index=1 -device virtio-blk-pci,scsi=off,bus=pci.0,addr=0x4,drive=drive-virtio-disk0,id=virtio-disk0 -netdev tap,id=hostnet0,ifname=$DEV,script=no,downscript=no -device virtio-net-pci,netdev=hostnet0,id=net0,mac=$macaddr,bus=pci.0,addr=0x3 -monitor unix:$monitor,server,nowait -rtc base=utc -device virtio-balloon-pci,id=balloon0,bus=pci.0,addr=0x6 -device piix3-usb-uhci,id=usb,bus=pci.0,addr=0x1.0x2 -chardev pty,id=ttyS0 -device isa-serial,chardev=ttyS0,id=serial1 -device usb-tablet,id=input0 -k fr -vga cirrus $datastr -daemonize $3 || exit 1
 
    # After the boot, we take the pts assigned to the serial port
    local ttyS0=$(echo "info chardev" | socat $monitor - | grep ttyS0 | cut -d'=' -f2 | cut -d':' -f2 | tr -d '\r')
@@ -150,6 +150,10 @@ case $1 in
                datadisks+=($2)
                shift
                ;;
+            "-s")
+               SMP=$2
+               shift
+               ;;
             *)
                NAME=$1
                ;;
@@ -169,7 +173,7 @@ case $1 in
 
       ip link show dev $BRIDGE >/dev/null 2>&1 || birsh_add_bridge
       birsh_add_netdevice
-      birsh_boot_vm $MEMORY $NAME $GRAPHIC
+      birsh_boot_vm $MEMORY $NAME $GRAPHIC $SMP
       birsh_remove_netdevice
       ;;
    "serial")
