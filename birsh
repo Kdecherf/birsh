@@ -93,8 +93,9 @@ birsh_boot_vm() {
    local origmacaddr=$(ip link show $DEV | grep link | awk -F' ' '{print $2}')
    local macaddr=$(echo -n $origmacaddr | sed -r "s/^([@-9a-f]{2}\:){3}/52:54:00:/; s/[0-9a-f]{2}$/$(echo -n $origmacaddr | md5sum | cut -c1-2)/;")
 
-   local serial=${TMPFOLDER}/$2.serial
-   local monitor=${TMPFOLDER}/$2.monitor
+   local name=${2/\//-}
+   local serial=${TMPFOLDER}/$name.serial
+   local monitor=${TMPFOLDER}/$name.monitor
 
    local datastr=""
    local datai=1
@@ -191,9 +192,15 @@ case $1 in
       umount_image $2
       ;;
    "list")
-      echo "Available images:"
+      if [[ "$2" == "base" ]]; then
+         echo "Available base images:"
+         folder=${IMAGESFOLDER}/base
+      else
+         echo "Available images:"
+         folder=${IMAGESFOLDER}
+      fi
       echo
-      for i in $(find $IMAGESFOLDER -maxdepth 1 -type f -name "*.qcow2" | sed -e 's@.*/@@' -e 's@\..*@@') ; do
+      for i in $(find $folder -maxdepth 1 -type f -name "*.qcow2" | sed -e 's@.*/@@' -e 's@\..*@@') ; do
          echo -e "\t\e[1;37m${i}\e[0m"
       done
       ;;
